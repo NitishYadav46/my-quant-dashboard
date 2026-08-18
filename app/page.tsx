@@ -10,12 +10,12 @@ import {
   ListOrdered, Activity, CheckCircle2, AlertCircle 
 } from 'lucide-react';
 
-// Aapka Supabase URL aur Key yahan set kar diya gaya hai (Aapko kuch nahi karna)
+// Aapka Supabase URL aur Key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://mjoqhqruzocmbhhjkjtv.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qb3FocXJ1em9jbWJoaGpranR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2NDg2NjYsImV4cCI6MjEwMjIyNDY2Nn0.MU1awKKiUp3x0laQvazM_nMuj96vyXmw2uG7qEZIR7M";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Reusable KPI Component (Trading UI Style)
+// Reusable KPI Component
 const KPIWidget = ({ title, value, subtext, icon, colorClass }: any) => (
   <div className="bg-[#0b0e14] border border-gray-800 p-5 rounded-2xl shadow-xl flex items-center space-x-4 transition-all hover:border-gray-600 relative overflow-hidden group">
     <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity ${colorClass.replace('text-', 'bg-')}`}></div>
@@ -35,38 +35,32 @@ export default function PureResearchDashboard() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [sampleWindow, setSampleWindow] = useState<50 | 100 | 200>(100);
+  
+  // Naya State Button/Dropdown ke liye
   const [dateFilter, setDateFilter] = useState('Live & Past');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     async function fetchResearchData() {
       try {
-        console.log("Fetching all data from Supabase without limits...");
-        
-        // Aapki Request ke anusaar: Yahan se .limit() hata diya gaya hai.
-        // Pura data fetch hoga.
         const { data, error } = await supabase
           .from('daman_history')
           .select('*')
           .order('period', { ascending: false }); 
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
         if (data) {
-          // Data ko sahi order mein set karne ke liye reverse kar rahe hain
           const sortedData = data.reverse();
-          console.log(`Successfully fetched ${sortedData.length} rows.`);
           setHistory(sortedData);
         }
       } catch (err: any) {
         console.error("Supabase Error:", err.message);
-        setErrorMsg(err.message || "Failed to fetch data from Supabase");
+        setErrorMsg(err.message || "Failed to fetch data");
       } finally {
         setLoading(false);
       }
     }
-    
     fetchResearchData();
   }, []);
 
@@ -91,27 +85,30 @@ export default function PureResearchDashboard() {
     return { liveSmallRatio: ratio, scatterData: mockScatterData, totalRows: history.length };
   }, [history, sampleWindow]);
 
-  // Loading UI
   if (loading) {
     return (
       <div className="min-h-screen bg-[#07090e] flex flex-col items-center justify-center text-indigo-500 font-bold space-y-4">
         <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="tracking-widest uppercase text-sm text-gray-400">Fetching Unlimited Data... Please Wait</p>
+        <p className="tracking-widest uppercase text-sm text-gray-400">Fetching Unlimited Data...</p>
       </div>
     );
   }
 
-  // Error UI
   if (errorMsg) {
     return (
       <div className="min-h-screen bg-[#07090e] flex flex-col items-center justify-center text-rose-500 font-bold space-y-4 p-6 text-center">
         <AlertCircle size={48} />
         <p className="text-xl">Database Connection Error</p>
         <p className="text-sm text-gray-400">{errorMsg}</p>
-        <p className="text-xs text-gray-500 mt-4">Make sure your table name is 'daman_history' and has public read access.</p>
       </div>
     );
   }
+
+  // Dropdown select hone par kya hoga
+  const handleDateSelect = (option: string) => {
+    setDateFilter(option);
+    setIsDropdownOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-[#07090e] text-gray-100 p-4 md:p-8 font-sans selection:bg-indigo-500/30">
@@ -127,11 +124,39 @@ export default function PureResearchDashboard() {
             <p className="text-gray-500 mt-2 text-sm font-medium tracking-wide">ALGORITHMIC REVERSAL DETECTION SYSTEM</p>
           </div>
           
-          <div className="mt-4 md:mt-0 relative group">
-            <button className="flex items-center gap-2 bg-[#0b0e14] hover:bg-gray-800 border border-gray-700 px-5 py-2.5 rounded-xl text-sm text-gray-300 transition-all shadow-lg">
-              <Calendar size={16} className="text-indigo-400"/>
-              Date: {dateFilter} ▼
+          {/* FIXED: Date Filter Dropdown Button */}
+          <div className="mt-4 md:mt-0 relative">
+            <button 
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center gap-2 bg-[#0b0e14] hover:bg-gray-800 border border-gray-700 px-5 py-2.5 rounded-xl text-sm text-gray-300 transition-all shadow-lg w-full md:w-auto justify-between"
+            >
+              <span className="flex items-center gap-2"><Calendar size={16} className="text-indigo-400"/> Date: {dateFilter}</span>
+              <span>▼</span>
             </button>
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-[#0b0e14] border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <div 
+                  onClick={() => handleDateSelect('Live & Past')}
+                  className="px-4 py-3 hover:bg-gray-800 cursor-pointer text-sm text-gray-300 border-b border-gray-800"
+                >
+                  Live & Past
+                </div>
+                <div 
+                  onClick={() => handleDateSelect('Today Only')}
+                  className="px-4 py-3 hover:bg-gray-800 cursor-pointer text-sm text-gray-300 border-b border-gray-800"
+                >
+                  Today Only
+                </div>
+                <div 
+                  onClick={() => handleDateSelect('Yesterday')}
+                  className="px-4 py-3 hover:bg-gray-800 cursor-pointer text-sm text-gray-300"
+                >
+                  Yesterday
+                </div>
+              </div>
+            )}
           </div>
         </header>
 
@@ -216,7 +241,8 @@ export default function PureResearchDashboard() {
             </div>
           </div>
           
-          <div className="h-[400px] w-full">
+          {/* FIXED: Graph ko Fixed Height de di gayi hai taaki CSS na hone par bhi dikhe */}
+          <div style={{ height: '400px', minHeight: '400px', width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: -20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
@@ -226,7 +252,7 @@ export default function PureResearchDashboard() {
                 
                 <RechartsTooltip 
                   cursor={{strokeDasharray: '3 3'}} 
-                  contentStyle={{ backgroundColor: '#0b0e14', border: '1px solid #1f2937', borderRadius: '12px', color: '#fff', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }}
+                  contentStyle={{ backgroundColor: '#0b0e14', border: '1px solid #1f2937', borderRadius: '12px', color: '#fff' }}
                   itemStyle={{ color: '#e5e7eb' }}
                   formatter={(value) => [`${value}%`, 'Peak Ratio']}
                 />
